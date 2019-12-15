@@ -12,8 +12,6 @@ var homePath string
 var bashrcPath string
 var shortcutsPath string
 var shortcutName string
-
-const bashLines = "\n# loading short-cut environment variables. see: short-cut --help\nexport SC_LOADED=true\n. ~/.shortcuts"
 const helpText = `
          __               __                   __ 
    _____/ /_  ____  _____/ /_      _______  __/ /_
@@ -30,7 +28,42 @@ Options:
 	-h, --help 	Display this help text
 `
 
+func setupBashrc(currentDir string) (error) {
+	homePath, _ := os.UserHomeDir()
+	bashrcPath := homePath + "/.bashrc"
+	_, exists := os.LookupEnv("SC_LOADED")
+	if !exists {
+		if bashrc, err := os.OpenFile(bashrcPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+			return err
+		} else {
+			// currentDir, _ := os.Getwd()
+			bashLines := "\n# loading short-cut environment variables. see: short-cut --help\nexport SC_LOADED=true\n. " + currentDir + "/.shortcuts"
+			if _, err := bashrc.Write([]byte(bashLines)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func setupShortcuts(shortcutName string, currentDir string) (error) {
+	shortcutsPath := "./.shortcuts"
+	shortCut := "export " + shortcutName + "=" + currentDir
+	if file, err := os.OpenFile(shortcutsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+		return err
+	} else {
+		if _, err := file.Write([]byte(shortCut + "\n")); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func main() {
+	if len(os.Args) != 2 {
+		fmt.Println("Please enter a name for the shortcut you would like.")
+		os.Exit(1)
+	}
 	shortcutName := os.Args[1]
 	if shortcutName == "--help" || shortcutName == "-h" {
 		fmt.Println(helpText)
@@ -43,35 +76,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	homePath, err := os.UserHomeDir()
-	if err != nil {
+	currentDir, _ := os.Getwd()
+	if err := setupBashrc(currentDir); err != nil {
 		log.Fatal(err)
 	}
-	shortcutsPath := homePath + "/.shortcuts"
-	bashrcPath := homePath + "/.bashrc"
-	currentDir, err := os.Getwd()
-	shortCut := "export " + shortcutName + "=" + currentDir
-
-	_, exists := os.LookupEnv("SC_LOADED")
-	if !exists {
-		if bashrc, err := os.OpenFile(bashrcPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
-			log.Fatal(err)
-		} else {
-			if _, err := bashrc.Write([]byte(bashLines)); err != nil {
-				log.Fatal(err)
-			}
-		}
-	}
-
-	if file, err := os.OpenFile(shortcutsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+	if err := setupShortcuts(shortcutName, currentDir); err != nil {
 		log.Fatal(err)
-	} else {
-		if _, err := file.Write([]byte(shortCut + "\n")); err != nil {
-			log.Fatal(err)
-		}
 	}
-	
-	cmd := exec.Command("bash", "./reload.sh")
+	cmd := exec.Command(".", "reload.sh")
 	cmdErr := cmd.Run()
 	if cmdErr != nil {
 		log.Fatal(cmdErr)	
