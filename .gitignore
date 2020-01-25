@@ -16,3 +16,4 @@
 .shortcuts
 short-cut
 *.zip
+build/**/*
