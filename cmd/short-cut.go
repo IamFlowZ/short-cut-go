@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"regexp"
 )
 
@@ -36,8 +35,7 @@ func setupBashrc(currentDir string) (error) {
 		if bashrc, err := os.OpenFile(bashrcPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
 			return err
 		} else {
-			// currentDir, _ := os.Getwd()
-			bashLines := "\n# loading short-cut environment variables. see: short-cut --help\nexport SC_LOADED=true\n. " + currentDir + "/.shortcuts"
+			bashLines := "\n# loading short-cut environment variables. see: short-cut --help\nexport SC_LOADED=true\n. /var/shortcut/shortcuts"
 			if _, err := bashrc.Write([]byte(bashLines)); err != nil {
 				return err
 			}
@@ -47,7 +45,7 @@ func setupBashrc(currentDir string) (error) {
 }
 
 func setupShortcuts(shortcutName string, currentDir string) (error) {
-	shortcutsPath := "./.shortcuts"
+	shortcutsPath := "/var/shortcut/shortcuts"
 	shortCut := "export " + shortcutName + "=" + currentDir
 	if file, err := os.OpenFile(shortcutsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
 		return err
@@ -83,9 +81,5 @@ func main() {
 	if err := setupShortcuts(shortcutName, currentDir); err != nil {
 		log.Fatal(err)
 	}
-	cmd := exec.Command(".", "reload.sh")
-	cmdErr := cmd.Run()
-	if cmdErr != nil {
-		log.Fatal(cmdErr)	
-	}
+	fmt.Println("Please reload your bashrc file to access the new shortcut. (source ~/.bashrc)")
 }
