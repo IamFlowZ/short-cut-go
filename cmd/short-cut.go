@@ -3,13 +3,14 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"os"
 	"regexp"
 )
 
 var homePath string
 var bashrcPath string
-var shortcutsPath string
+const shortcutsPath string = "/var/shortcut/shortcuts"
 var shortcutName string
 const helpText = `
          __               __                   __ 
@@ -45,7 +46,6 @@ func setupBashrc(currentDir string) (error) {
 }
 
 func setupShortcuts(shortcutName string, currentDir string) (error) {
-	shortcutsPath := "/var/shortcut/shortcuts"
 	shortCut := "export " + shortcutName + "=" + currentDir
 	if file, err := os.OpenFile(shortcutsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
 		return err
@@ -57,6 +57,11 @@ func setupShortcuts(shortcutName string, currentDir string) (error) {
 	return nil
 }
 
+// TODO: Write function to handle arg parsing. 
+// maybe add an argparsing library
+// write higher order function to deal with manipulating the shortcuts file
+// format ls into table of (name, path) tuples
+// a function to remove shortcuts
 func main() {
 	if len(os.Args) != 2 {
 		fmt.Println("Please enter a name for the shortcut you would like.")
@@ -66,6 +71,25 @@ func main() {
 	if shortcutName == "--help" || shortcutName == "-h" {
 		fmt.Println(helpText)
 		os.Exit(0)
+	}
+
+	if shortcutName == "-l" || shortcutName == "--list" {
+		if file, err := os.Open(shortcutsPath); err != nil {
+			log.Fatal("Couldn't open file", err)
+		} else {
+			data := make([]byte, 1000)
+			if count, err := file.Read(data); err != nil {
+				log.Fatal("Error while reading file...", err)
+			} else {
+				lines := string(data[:count])
+				splitLines := strings.Split(lines, "\n")
+				for _, line := range splitLines {
+					fmt.Println(line[7:len(line)])
+				}
+				file.Close()
+				os.Exit(0)
+			}
+		}
 	}
 
 	re := regexp.MustCompile(`^[a-zA-z0-9]*$`)
