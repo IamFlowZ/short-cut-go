@@ -6,6 +6,8 @@ import (
 	"strings"
 	"os"
 	"regexp"
+	"flag"
+	"text/tabwriter"
 )
 
 var homePath string
@@ -23,9 +25,6 @@ Usage:
 	short-cut [NAME]
 	Quickly create an env variable that equates to the current working directory.
 	(e.g. "user@machine:PATH$ short-cut test" = "$test=PATH")
-
-Options:
-	-h, --help 	Display this help text
 `
 
 func setupBashrc(currentDir string) (error) {
@@ -45,7 +44,7 @@ func setupBashrc(currentDir string) (error) {
 	return nil
 }
 
-func setupShortcuts(shortcutName string, currentDir string) (error) {
+func writeShortcut(shortcutName string, currentDir string) (error) {
 	shortCut := "export " + shortcutName + "=" + currentDir
 	if file, err := os.OpenFile(shortcutsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
 		return err
@@ -57,40 +56,65 @@ func setupShortcuts(shortcutName string, currentDir string) (error) {
 	return nil
 }
 
-// TODO: Write function to handle arg parsing. 
-// maybe add an argparsing library
-// write higher order function to deal with manipulating the shortcuts file
-// format ls into table of (name, path) tuples
-// a function to remove shortcuts
+func readShortcuts() ([]string, error) {
+	if file, err := os.Open(shortcutsPath); err != nil {
+		file.Close()
+		return nil, err
+	} else {
+		data := make([]byte, 1000)
+		if count, err := file.Read(data); err != nil {
+			file.Close()
+			return nil, err
+		} else {
+			lines := string(data[:count])
+			file.Close()
+			return strings.Split(lines, "\n"), nil
+		}
+	}
+	
+}
+
+var list bool
+var help bool
+func init() {
+	flag.BoolVar(&list, "list", false, "Display a list of the available shortcuts")
+	flag.BoolVar(&help, "help", false, helpText)
+}
+
 func main() {
-	if len(os.Args) != 2 {
+	flag.Parse()
+	if len(os.Args) < 2 {
 		fmt.Println("Please enter a name for the shortcut you would like.")
 		os.Exit(1)
 	}
-	shortcutName := os.Args[1]
-	if shortcutName == "--help" || shortcutName == "-h" {
+
+	if help {
 		fmt.Println(helpText)
 		os.Exit(0)
 	}
 
-	if shortcutName == "-l" || shortcutName == "--list" {
-		if file, err := os.Open(shortcutsPath); err != nil {
-			log.Fatal("Couldn't open file", err)
-		} else {
-			data := make([]byte, 1000)
-			if count, err := file.Read(data); err != nil {
-				log.Fatal("Error while reading file...", err)
-			} else {
-				lines := string(data[:count])
-				splitLines := strings.Split(lines, "\n")
-				for _, line := range splitLines {
-					fmt.Println(line[7:len(line)])
-				}
-				file.Close()
-				os.Exit(0)
+	if list {
+		w := tabwriter.NewWriter(os.Stdout, 10, 0, 5, ' ', 0)
+		fmt.Fprintln(w, "Shortcut:\tPath:\t")
+		fmt.Fprintln(w, "------------------------------")
+		splitLines, err := readShortcuts()
+		if err != nil {
+			log.Fatal("Couldn't read shortcuts, ", err)
+		}
+		for _, line := range splitLines {
+			if len(line) > 0 {
+				split := strings.Split(line, "=")
+				split[0] = split[0][7:]
+				s := fmt.Sprintf("%s\t%s\t", split[0], split[1])
+				fmt.Fprintln(w, s)
+				fmt.Fprintln(w, "------------------------------")
+				w.Flush()
 			}
 		}
+		os.Exit(0)
 	}
+
+	shortcutName := os.Args[1]
 
 	re := regexp.MustCompile(`^[a-zA-z0-9]*$`)
 	if validName := re.MatchString(shortcutName); !validName {
@@ -102,7 +126,7 @@ func main() {
 	if err := setupBashrc(currentDir); err != nil {
 		log.Fatal(err)
 	}
-	if err := setupShortcuts(shortcutName, currentDir); err != nil {
+	if err := writeShortcut(shortcutName, currentDir); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("Please reload your bashrc file to access the new shortcut. (source ~/.bashrc)")
