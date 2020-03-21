@@ -23,8 +23,15 @@ const helpText = `
 
 Usage:
 	short-cut [NAME]
-	Quickly create an env variable that equates to the current working directory.
-	(e.g. "user@machine:PATH$ short-cut test" = "$test=PATH")
+
+	Quickly create an environment variable that equals the current working directory.
+
+	Example:
+		[user@machine:/home/user]$ short-cut test
+			output: Please reload your bashrc file to access the new shortcut. (source ~/.bashrc)
+		[user@machine:/home/user]$ source ~/.bashrc
+		[user@machine:/home/user]$ echo $test
+			output: /home/user
 `
 
 func setupBashrc(currentDir string) (error) {
@@ -78,7 +85,7 @@ var list bool
 var help bool
 func init() {
 	flag.BoolVar(&list, "list", false, "Display a list of the available shortcuts")
-	flag.BoolVar(&help, "help", false, helpText)
+	flag.BoolVar(&help, "help", false, "Display the help text")
 }
 
 func main() {
