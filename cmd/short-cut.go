@@ -81,11 +81,60 @@ func readShortcuts() ([]string, error) {
 	
 }
 
+func listShortcuts() {
+	w := tabwriter.NewWriter(os.Stdout, 10, 0, 5, ' ', 0)
+	fmt.Fprintln(w, "Shortcut:\tPath:\t")
+	fmt.Fprintln(w, "------------------------------")
+	splitLines, err := readShortcuts()
+	if err != nil {
+		log.Fatal("Couldn't read shortcuts, ", err)
+	}
+	for _, line := range splitLines {
+		if len(line) > 0 {
+			split := strings.Split(line, "=")
+			split[0] = split[0][7:]
+			s := fmt.Sprintf("%s\t%s\t", split[0], split[1])
+			fmt.Fprintln(w, s)
+			fmt.Fprintln(w, "------------------------------")
+			w.Flush()
+		}
+	}
+}
+
+func removeShortcut(shortcutName string) (error) {
+	splitLines, err := readShortcuts()
+	newLines := make([]string, len(splitLines))
+	for i, line := range splitLines {
+		if strings.Contains(line, shortcutName) {
+			fmt.Println("fuck yea")
+		} else {
+			newLines[i] = line
+		}
+	}
+	if file, err := os.OpenFile(shortcutsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err != nil {
+		return err
+	} else {
+		for _, line := range newLines {
+			if len(line) > 0 {
+				if _, err := file.Write([]byte(line + "\n")); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	
+	return err
+}
+
 var list bool
 var help bool
+var remove bool
+var removeAll bool
 func init() {
-	flag.BoolVar(&list, "list", false, "Display a list of the available shortcuts")
 	flag.BoolVar(&help, "help", false, "Display the help text")
+	flag.BoolVar(&list, "list", false, "Display a list of the available shortcuts")
+	flag.BoolVar(&remove, "remove", false, "Remove a shortcut")
+	flag.BoolVar(&removeAll, "removeAll", false, "Remvoe all shortcuts. \n**WARNING** This flag does not work.")
 }
 
 func main() {
@@ -101,27 +150,26 @@ func main() {
 	}
 
 	if list {
-		w := tabwriter.NewWriter(os.Stdout, 10, 0, 5, ' ', 0)
-		fmt.Fprintln(w, "Shortcut:\tPath:\t")
-		fmt.Fprintln(w, "------------------------------")
-		splitLines, err := readShortcuts()
-		if err != nil {
-			log.Fatal("Couldn't read shortcuts, ", err)
-		}
-		for _, line := range splitLines {
-			if len(line) > 0 {
-				split := strings.Split(line, "=")
-				split[0] = split[0][7:]
-				s := fmt.Sprintf("%s\t%s\t", split[0], split[1])
-				fmt.Fprintln(w, s)
-				fmt.Fprintln(w, "------------------------------")
-				w.Flush()
-			}
-		}
+		listShortcuts()
 		os.Exit(0)
 	}
 
-	shortcutName := os.Args[1]
+	if removeAll {
+		if err := os.Remove(shortcutsPath); err != nil {
+			fmt.Println(err)
+		}
+	}
+	
+	if strings.Contains(os.Args[1], "-") {
+		shortcutName = os.Args[2]
+	} else {
+		shortcutName = os.Args[1]
+	}
+
+	if remove {
+		removeShortcut(shortcutName)
+		os.Exit(0)
+	}
 
 	re := regexp.MustCompile(`^[a-zA-z0-9]*$`)
 	if validName := re.MatchString(shortcutName); !validName {
